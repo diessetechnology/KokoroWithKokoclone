@@ -1,0 +1,49 @@
+# Optional override for advanced users who want Traefik labels in Compose instead of using Dokploy Domains UI.
+# Usage outside Dokploy, or if your Dokploy Traefik watches Docker labels:
+#   docker compose -f docker-compose.yml -f docker-compose.traefik-labels.yml up -d
+#
+# In Dokploy, the recommended path is usually Domains tab + protection middleware in the UI.
+
+services:
+  kokoro:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.kokoro.rule=Host(`${KOKORO_HOST}`)
+      - traefik.http.routers.kokoro.entrypoints=websecure
+      - traefik.http.routers.kokoro.tls.certresolver=letsencrypt
+      - traefik.http.routers.kokoro.middlewares=voice-auth,voice-secure-headers
+      - traefik.http.services.kokoro.loadbalancer.server.port=8880
+
+  kokoclone:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.kokoclone.rule=Host(`${KOKOCLONE_HOST}`)
+      - traefik.http.routers.kokoclone.entrypoints=websecure
+      - traefik.http.routers.kokoclone.tls.certresolver=letsencrypt
+      - traefik.http.routers.kokoclone.middlewares=voice-auth,voice-secure-headers
+      - traefik.http.services.kokoclone.loadbalancer.server.port=7860
+
+  ultravox:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ultravox.rule=Host(`${ULTRAVOX_HOST}`)
+      - traefik.http.routers.ultravox.entrypoints=websecure
+      - traefik.http.routers.ultravox.tls.certresolver=letsencrypt
+      - traefik.http.routers.ultravox.middlewares=voice-auth,voice-secure-headers
+      - traefik.http.services.ultravox.loadbalancer.server.port=8080
+
+  voice-middleware-definitions:
+    image: alpine:3.20
+    command: ["sh", "-c", "sleep infinity"]
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.middlewares.voice-auth.basicauth.users=${BASIC_AUTH_USER}:${BASIC_AUTH_PASSWORD_HASH}
+      - traefik.http.middlewares.voice-secure-headers.headers.stsSeconds=31536000
+      - traefik.http.middlewares.voice-secure-headers.headers.stsIncludeSubdomains=true
+      - traefik.http.middlewares.voice-secure-headers.headers.stsPreload=true
+      - traefik.http.middlewares.voice-secure-headers.headers.contentTypeNosniff=true
+      - traefik.http.middlewares.voice-secure-headers.headers.browserXssFilter=true
+      - traefik.http.middlewares.voice-secure-headers.headers.referrerPolicy=no-referrer
+    networks:
+      - voice_private

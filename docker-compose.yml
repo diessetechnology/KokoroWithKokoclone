@@ -1,0 +1,87 @@
+services:
+  # Kokoro TTS - CPU-only FastAPI/OpenAI-compatible API + docs UI.
+  # In Dokploy: add a Domain pointing to internal port 8880.
+  kokoro:
+    image: ${KOKORO_IMAGE:-ghcr.io/remsky/kokoro-fastapi-cpu:latest}
+    restart: unless-stopped
+    expose:
+      - "8880"
+    environment:
+      PYTHONUNBUFFERED: "1"
+      OMP_NUM_THREADS: ${OMP_NUM_THREADS:-4}
+      OPENBLAS_NUM_THREADS: ${OPENBLAS_NUM_THREADS:-4}
+      MKL_NUM_THREADS: ${MKL_NUM_THREADS:-4}
+      NUMEXPR_NUM_THREADS: ${NUMEXPR_NUM_THREADS:-4}
+      WORKERS: ${UVICORN_WORKERS:-1}
+    volumes:
+      - kokoro_cache:/root/.cache
+      - kokoro_data:/app/data
+    networks:
+      - voice_private
+    security_opt:
+      - no-new-privileges:true
+
+  # KokoClone - Gradio UI/API, CPU-only.
+  # In Dokploy: add a Domain pointing to internal port 7860.
+  kokoclone:
+    build:
+      context: ./kokoclone
+    restart: unless-stopped
+    expose:
+      - "7860"
+    environment:
+      PYTHONUNBUFFERED: "1"
+      OMP_NUM_THREADS: ${OMP_NUM_THREADS:-4}
+      OPENBLAS_NUM_THREADS: ${OPENBLAS_NUM_THREADS:-4}
+      MKL_NUM_THREADS: ${MKL_NUM_THREADS:-4}
+      NUMEXPR_NUM_THREADS: ${NUMEXPR_NUM_THREADS:-4}
+      GRADIO_SERVER_NAME: 0.0.0.0
+      GRADIO_SERVER_PORT: 7860
+      GRADIO_ANALYTICS_ENABLED: ${GRADIO_ANALYTICS_ENABLED:-False}
+      HF_HOME: /cache/huggingface
+      XDG_CACHE_HOME: /cache
+    volumes:
+      - kokoclone_cache:/cache
+      - kokoclone_outputs:/app/outputs
+    networks:
+      - voice_private
+    security_opt:
+      - no-new-privileges:true
+    shm_size: "1gb"
+
+  # Ultravox via llama.cpp server - CPU-only, Q4_K_M quantization.
+  # In Dokploy: add a Domain pointing to internal port 8080.
+  ultravox:
+    image: ${ULTRAVOX_IMAGE:-ghcr.io/ggml-org/llama.cpp:server}
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      LLAMA_ARG_HF_REPO: ${ULTRAVOX_HF_REPO:-ggml-org/ultravox-v0_5-llama-3_2-1b-GGUF}
+      LLAMA_ARG_HF_FILE: ${ULTRAVOX_HF_FILE:-Llama-3.2-1B-Instruct-Q4_K_M.gguf}
+      LLAMA_ARG_HOST: 0.0.0.0
+      LLAMA_ARG_PORT: 8080
+      LLAMA_ARG_CTX_SIZE: ${ULTRAVOX_CTX:-2048}
+      LLAMA_ARG_THREADS: ${ULTRAVOX_THREADS:-4}
+      LLAMA_ARG_BATCH: ${ULTRAVOX_BATCH:-128}
+      LLAMA_ARG_UBATCH: ${ULTRAVOX_UBATCH:-128}
+      LLAMA_ARG_NO_MMAP: "false"
+    volumes:
+      - ultravox_models:/models
+      - ultravox_cache:/root/.cache
+    networks:
+      - voice_private
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  voice_private:
+    driver: bridge
+
+volumes:
+  kokoro_cache:
+  kokoro_data:
+  kokoclone_cache:
+  kokoclone_outputs:
+  ultravox_models:
+  ultravox_cache:
