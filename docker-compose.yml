@@ -5,6 +5,13 @@ services:
     restart: unless-stopped
     expose:
       - "8880"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kokoro-api.rule=Host(`${KOKORO_API_HOST}`)"
+      - "traefik.http.services.kokoro-api.loadbalancer.server.port=8880"
+      - "traefik.http.middlewares.api-auth.basicauth.users=${BASIC_AUTH_USERS}"
+      - "traefik.http.middlewares.api-auth.basicauth.realm=Voice API"
+      - "traefik.http.routers.kokoro-api.middlewares=api-auth@docker"      
     environment:
       PYTHONUNBUFFERED: "1"
       OMP_NUM_THREADS: ${OMP_NUM_THREADS:-4}
@@ -24,6 +31,13 @@ services:
     restart: unless-stopped
     expose:
       - "8000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kokoro-api.rule=Host(`${KOKORO_API_HOST}`)"
+      - "traefik.http.services.kokoro-api.loadbalancer.server.port=8880"
+      - "traefik.http.middlewares.api-auth.basicauth.users=${BASIC_AUTH_USERS}"
+      - "traefik.http.middlewares.api-auth.basicauth.realm=Voice API"
+      - "traefik.http.routers.kokoro-api.middlewares=api-auth@docker"
     environment:
       PYTHONUNBUFFERED: "1"
       OMP_NUM_THREADS: ${OMP_NUM_THREADS:-4}
@@ -42,6 +56,13 @@ services:
     restart: unless-stopped
     expose:
       - "8080"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kokoro-api.rule=Host(`${KOKORO_API_HOST}`)"
+      - "traefik.http.services.kokoro-api.loadbalancer.server.port=8880"
+      - "traefik.http.middlewares.api-auth.basicauth.users=${BASIC_AUTH_USERS}"
+      - "traefik.http.middlewares.api-auth.basicauth.realm=Voice API"
+      - "traefik.http.routers.kokoro-api.middlewares=api-auth@docker"
     environment:
       LLAMA_ARG_HF_REPO: ${ULTRAVOX_HF_REPO:-ggml-org/ultravox-v0_5-llama-3_2-1b-GGUF}
       LLAMA_ARG_HF_FILE: ${ULTRAVOX_HF_FILE:-Llama-3.2-1B-Instruct-Q4_K_M.gguf}
