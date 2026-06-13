@@ -13,9 +13,17 @@ services:
       MKL_NUM_THREADS: ${MKL_NUM_THREADS:-4}
       NUMEXPR_NUM_THREADS: ${NUMEXPR_NUM_THREADS:-4}
       WORKERS: ${UVICORN_WORKERS:-1}
-    volumes:
-      - kokoro_cache:/root/.cache
-      - kokoro_data:/app/data
+    labels:
+     - "traefik.enable=true"
+     - "traefik.http.routers.kokoro.rule=Host(`${KOKORO_HOST}`)"
+     - "traefik.http.routers.kokoro.entrypoints=websecure"
+     - "traefik.http.routers.kokoro.tls.certresolver=letsencrypt"
+     - "traefik.http.services.kokoro.loadbalancer.server.port=8880"
+     - "traefik.http.middlewares.voice-auth.basicauth.users=${BASIC_AUTH_USERS}"
+     - "traefik.http.middlewares.voice-auth.basicauth.realm=Protected Voice Stack"
+     - "traefik.http.routers.kokoro.middlewares=voice-auth@docker"
+     - kokoro_cache:/root/.cache
+     - kokoro_data:/app/data
     networks:
       - voice_private
     security_opt:
@@ -40,6 +48,13 @@ services:
       GRADIO_ANALYTICS_ENABLED: ${GRADIO_ANALYTICS_ENABLED:-False}
       HF_HOME: /cache/huggingface
       XDG_CACHE_HOME: /cache
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kokoclone.rule=Host(`${KOKOCLONE_HOST}`)"
+      - "traefik.http.routers.kokoclone.entrypoints=websecure"
+      - "traefik.http.routers.kokoclone.tls.certresolver=letsencrypt"
+      - "traefik.http.services.kokoclone.loadbalancer.server.port=7860"
+      - "traefik.http.routers.kokoclone.middlewares=voice-auth@docker"
     volumes:
       - kokoclone_cache:/cache
       - kokoclone_outputs:/app/outputs
@@ -73,6 +88,13 @@ services:
       - voice_private
     security_opt:
       - no-new-privileges:true
+   labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ultravox.rule=Host(`${ULTRAVOX_HOST}`)"
+      - "traefik.http.routers.ultravox.entrypoints=websecure"
+      - "traefik.http.routers.ultravox.tls.certresolver=letsencrypt"
+      - "traefik.http.services.ultravox.loadbalancer.server.port=8080"
+      - "traefik.http.routers.ultravox.middlewares=voice-auth@docker"
 
 networks:
   voice_private:
