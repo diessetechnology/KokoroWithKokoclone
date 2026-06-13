@@ -6,9 +6,6 @@ services:
     expose:
       - "8880"
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.kokoro-api.rule=Host(`${KOKORO_API_HOST}`)"
-      - "traefik.http.services.kokoro-api.loadbalancer.server.port=8880"
       - "traefik.http.middlewares.api-auth.basicauth.users=${BASIC_AUTH_USERS}"
       - "traefik.http.middlewares.api-auth.basicauth.realm=Voice API"
       - "traefik.http.routers.kokoro-api.middlewares=api-auth@docker"      
@@ -32,9 +29,6 @@ services:
     expose:
       - "8000"
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.kokoro-api.rule=Host(`${KOKORO_API_HOST}`)"
-      - "traefik.http.services.kokoro-api.loadbalancer.server.port=8880"
       - "traefik.http.middlewares.api-auth.basicauth.users=${BASIC_AUTH_USERS}"
       - "traefik.http.middlewares.api-auth.basicauth.realm=Voice API"
       - "traefik.http.routers.kokoro-api.middlewares=api-auth@docker"
@@ -57,9 +51,6 @@ services:
     expose:
       - "8080"
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.kokoro-api.rule=Host(`${KOKORO_API_HOST}`)"
-      - "traefik.http.services.kokoro-api.loadbalancer.server.port=8880"
       - "traefik.http.middlewares.api-auth.basicauth.users=${BASIC_AUTH_USERS}"
       - "traefik.http.middlewares.api-auth.basicauth.realm=Voice API"
       - "traefik.http.routers.kokoro-api.middlewares=api-auth@docker"
@@ -94,11 +85,6 @@ services:
       KOKOCLONE_API_BASE: http://kokoclone-api:8000
       ULTRAVOX_API_BASE: http://ultravox:8080
     labels:
-      # If Coolify/Dokploy manages domains from UI, you can leave only the service port label
-      # or remove all router labels and set domain -> service voice-hub-ui -> port 7860 in the UI.
-      - "traefik.enable=true"
-      - "traefik.http.routers.voice-hub-ui.rule=Host(`${VOICE_UI_HOST}`)"
-      - "traefik.http.services.voice-hub-ui.loadbalancer.server.port=7860"
       - "traefik.http.middlewares.voice-auth.basicauth.users=${BASIC_AUTH_USERS}"
       - "traefik.http.middlewares.voice-auth.basicauth.realm=Voice Hub"
       - "traefik.http.routers.voice-hub-ui.middlewares=voice-auth@docker"
