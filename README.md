@@ -1,74 +1,111 @@
-# Dokploy Voice Stack CPU
+# Voice Hub Stack
 
-Stack Docker Compose per Dokploy con:
+Stack Compose CPU-only con una UI unica per:
 
-- Kokoro TTS CPU: API/OpenAI-compatible e UI docs sulla porta interna `8880`.
-- KokoClone CPU: UI/API Gradio sulla porta interna `7860`.
-- Ultravox CPU quantizzato: `llama.cpp` server con modello GGUF `Q4_K_M` sulla porta interna `8080`.
+- Kokoro TTS: API TTS semplice
+- KokoClone API: voice cloning / TTS
+- Ultravox: chat/audio model via llama.cpp server
 
-## Deploy rapido su Dokploy
+La UI unica e pubblica e' `voice-hub-ui` sulla porta interna `7860`.
+I backend rimangono privati sulla rete Docker per default.
 
-1. Crea un nuovo progetto/app Docker Compose in Dokploy.
+## File inclusi
+
+- `docker-compose.yml`: stack principale con UI unica
+- `docker-compose.public-apis.yml`: override opzionale per esporre le API pubblicamente dietro Basic Auth
+- `.env.example`: variabili ambiente
+- `voice-hub-ui/Dockerfile`: build della UI
+- `voice-hub-ui/app.py`: codice Gradio della UI
+
+## Deploy su Coolify
+
+1. Crea una nuova risorsa Docker Compose.
 2. Carica/incolla `docker-compose.yml`.
-3. Copia `.env.example` nelle variabili Dokploy, poi modifica domini, thread CPU e password.
-4. Crea tre domini nel tab **Domains** di Dokploy:
-   - `kokoro.example.com` -> servizio `kokoro`, porta `8880`
-   - `kokoclone.example.com` -> servizio `kokoclone`, porta `7860`
-   - `ultravox.example.com` -> servizio `ultravox`, porta `8080`
-5. Abilita HTTPS/SSL dai Domains di Dokploy.
-6. Proteggi i domini con Basic Auth / middleware / protection layer di Dokploy o del proxy davanti.
+3. Carica anche la cartella `voice-hub-ui`.
+4. Copia `.env.example` nelle variabili ambiente e modifica i valori.
+5. Assegna dominio solo a:
+   - servizio: `voice-hub-ui`
+   - porta: `7860`
+6. Se usi labels Traefik, imposta `VOICE_UI_HOST=voice.tuodominio.it`.
+7. Se Coolify gestisce routing dalla UI, puoi rimuovere le labels router dal servizio `voice-hub-ui` e configurare dominio -> porta 7860 dalla UI.
 
-> Importante: non mappare porte pubbliche nel compose. I servizi usano solo `expose`, quindi non sono pubblicati direttamente su internet.
+## Deploy su Dokploy
 
-## Protezione
+Per Dokploy, se usi labels Traefik manuali, assicurati che il proxy riesca a raggiungere i container.
+Se hai gateway timeout, collega i servizi anche alla rete esterna di Dokploy, spesso `dokploy-network`, e aggiungi:
 
-Questo pacchetto include una variante opzionale con label Traefik in `docker-compose.traefik-labels.yml`, ma in Dokploy è consigliato usare il tab **Domains** per associare dominio e porta.
-
-Per password Basic Auth con Traefik labels:
-
-```bash
-sudo apt-get install apache2-utils -y
-htpasswd -nbB admin 'PASSWORD_FORTE'
+```yaml
+labels:
+  - "traefik.docker.network=dokploy-network"
 ```
 
-Copia l'hash dopo `admin:` in `BASIC_AUTH_PASSWORD_HASH`.
+## Basic Auth
 
-Per esposizione pubblica reale, consigliato anche uno tra:
+Genera credenziali:
 
-- Cloudflare Access / Zero Trust
-- VPN o Tailscale
-- allowlist IP sul firewall
-- WAF/rate limit a monte
+```bash
+docker run --rm httpd:2.4-alpine htpasswd -nbB admin 'PASSWORD_FORTE'
+```
+
+Esempio output:
+
+```text
+admin:$2y$05$abc...
+```
+
+Nel file env/Compose raddoppia i `$`:
+
+```env
+BASIC_AUTH_USERS=admin:$$2y$$05$$abc...
+```
+
+## Uso come API per una app
+
+### App nello stesso server/rete Docker
+
+Non esporre le API pubblicamente. La tua app chiama:
+
+```text
+http://kokoro:8880
+http://kokoclone-api:8000
+http://ultravox:8080
+```
+
+### App esterna
+
+Usa l'override `docker-compose.public-apis.yml` o configura domini dalla UI:
+
+```text
+https://kokoro-api.tuodominio.it
+https://clone-api.tuodominio.it
+https://ultravox-api.tuodominio.it
+```
+
+Proteggi sempre con Basic Auth, Cloudflare Access, VPN, IP allowlist o un gateway API.
+Non lasciare le API nude su internet.
 
 ## Test API
 
-### Kokoro
+Kokoro:
 
 ```bash
 curl -u admin:PASSWORD_FORTE \
-  https://kokoro.example.com/v1/audio/speech \
+  https://kokoro-api.tuodominio.it/v1/audio/speech \
   -H 'Content-Type: application/json' \
-  -d '{"model":"kokoro","input":"Ciao, questo è un test.","voice":"af_heart"}' \
+  -d '{"model":"kokoro","input":"Ciao mondo","voice":"af_heart","response_format":"wav"}' \
   --output kokoro.wav
 ```
 
-### Ultravox / llama.cpp
+Ultravox:
 
 ```bash
 curl -u admin:PASSWORD_FORTE \
-  https://ultravox.example.com/v1/chat/completions \
+  https://ultravox-api.tuodominio.it/v1/chat/completions \
   -H 'Content-Type: application/json' \
-  -d '{"model":"ultravox","messages":[{"role":"user","content":"Rispondi in italiano: cosa sai fare?"}],"temperature":0.4}'
+  -d '{"model":"ultravox","messages":[{"role":"user","content":"Ciao"}],"temperature":0.4}'
 ```
 
-## CPU tuning
+## Nota KokoClone
 
-- `ULTRAVOX_THREADS`: mettilo uguale o leggermente inferiore ai core fisici.
-- `OMP_NUM_THREADS`: 2-8 di solito va bene.
-- Ultravox usa il modello 1B `Q4_K_M`, più adatto a CPU rispetto a modelli 8B.
-- Se la macchina è piccola, lascia `ULTRAVOX_CTX=2048`.
-
-## Note
-
-- Dokploy salva le variabili definite nel suo editor in un file `.env` accanto al compose; il compose deve comunque referenziarle con `${VAR}`.
-- Se usi il file opzionale `docker-compose.traefik-labels.yml`, verifica che la tua installazione Dokploy/Traefik legga le label Docker e che il certresolver si chiami davvero `letsencrypt`.
+La UI prova l'endpoint OpenAI-compatible `/v1/audio/speech`.
+Se l'image KokoClone scelta espone un endpoint diverso, apri la tab `Debug API`, leggi `/openapi.json` e modifica la funzione `kokoclone_tts()` in `voice-hub-ui/app.py`.

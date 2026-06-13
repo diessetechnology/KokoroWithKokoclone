@@ -1,0 +1,29 @@
+# Optional override: expose APIs publicly behind Basic Auth.
+# Use this ONLY if your external app cannot reach the Docker network.
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.public-apis.yml up -d
+# In Coolify/Dokploy, add this content manually or create public domains from the UI.
+
+services:
+  kokoro:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kokoro-api.rule=Host(`${KOKORO_API_HOST}`)"
+      - "traefik.http.services.kokoro-api.loadbalancer.server.port=8880"
+      - "traefik.http.middlewares.api-auth.basicauth.users=${BASIC_AUTH_USERS}"
+      - "traefik.http.middlewares.api-auth.basicauth.realm=Voice API"
+      - "traefik.http.routers.kokoro-api.middlewares=api-auth@docker"
+
+  kokoclone-api:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kokoclone-api.rule=Host(`${KOKOCLONE_API_HOST}`)"
+      - "traefik.http.services.kokoclone-api.loadbalancer.server.port=8000"
+      - "traefik.http.routers.kokoclone-api.middlewares=api-auth@docker"
+
+  ultravox:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ultravox-api.rule=Host(`${ULTRAVOX_API_HOST}`)"
+      - "traefik.http.services.ultravox-api.loadbalancer.server.port=8080"
+      - "traefik.http.routers.ultravox-api.middlewares=api-auth@docker"
