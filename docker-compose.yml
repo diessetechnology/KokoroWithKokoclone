@@ -1,6 +1,4 @@
 services:
-  # Kokoro TTS - CPU-only FastAPI/OpenAI-compatible API + docs UI.
-  # In Dokploy: add a Domain pointing to internal port 8880.
   kokoro:
     image: ${KOKORO_IMAGE:-ghcr.io/remsky/kokoro-fastapi-cpu:latest}
     restart: unless-stopped
@@ -14,23 +12,22 @@ services:
       NUMEXPR_NUM_THREADS: ${NUMEXPR_NUM_THREADS:-4}
       WORKERS: ${UVICORN_WORKERS:-1}
     labels:
-     - "traefik.enable=true"
-     - "traefik.http.routers.kokoro.rule=Host(`${KOKORO_HOST}`)"
-     - "traefik.http.routers.kokoro.entrypoints=websecure"
-     - "traefik.http.routers.kokoro.tls.certresolver=letsencrypt"
-     - "traefik.http.services.kokoro.loadbalancer.server.port=8880"
-     - "traefik.http.middlewares.voice-auth.basicauth.users=${BASIC_AUTH_USERS}"
-     - "traefik.http.middlewares.voice-auth.basicauth.realm=Protected Voice Stack"
-     - "traefik.http.routers.kokoro.middlewares=voice-auth@docker"
-     - kokoro_cache:/root/.cache
-     - kokoro_data:/app/data
+      - "traefik.enable=true"
+      - "traefik.http.routers.kokoro.rule=Host(`${KOKORO_HOST}`)"
+      - "traefik.http.routers.kokoro.entrypoints=websecure"
+      - "traefik.http.routers.kokoro.tls.certresolver=letsencrypt"
+      - "traefik.http.services.kokoro.loadbalancer.server.port=8880"
+      - "traefik.http.middlewares.voice-auth.basicauth.users=${BASIC_AUTH_USERS}"
+      - "traefik.http.middlewares.voice-auth.basicauth.realm=Protected Voice Stack"
+      - "traefik.http.routers.kokoro.middlewares=voice-auth@docker"
+    volumes:
+      - kokoro_cache:/root/.cache
+      - kokoro_data:/app/data
     networks:
       - voice_private
     security_opt:
       - no-new-privileges:true
 
-  # KokoClone - Gradio UI/API, CPU-only.
-  # In Dokploy: add a Domain pointing to internal port 7860.
   kokoclone:
     build:
       context: ./kokoclone
@@ -54,6 +51,8 @@ services:
       - "traefik.http.routers.kokoclone.entrypoints=websecure"
       - "traefik.http.routers.kokoclone.tls.certresolver=letsencrypt"
       - "traefik.http.services.kokoclone.loadbalancer.server.port=7860"
+      - "traefik.http.middlewares.voice-auth.basicauth.users=${BASIC_AUTH_USERS}"
+      - "traefik.http.middlewares.voice-auth.basicauth.realm=Protected Voice Stack"
       - "traefik.http.routers.kokoclone.middlewares=voice-auth@docker"
     volumes:
       - kokoclone_cache:/cache
@@ -64,8 +63,6 @@ services:
       - no-new-privileges:true
     shm_size: "1gb"
 
-  # Ultravox via llama.cpp server - CPU-only, Q4_K_M quantization.
-  # In Dokploy: add a Domain pointing to internal port 8080.
   ultravox:
     image: ${ULTRAVOX_IMAGE:-ghcr.io/ggml-org/llama.cpp:server}
     restart: unless-stopped
@@ -81,6 +78,15 @@ services:
       LLAMA_ARG_BATCH: ${ULTRAVOX_BATCH:-128}
       LLAMA_ARG_UBATCH: ${ULTRAVOX_UBATCH:-128}
       LLAMA_ARG_NO_MMAP: "false"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ultravox.rule=Host(`${ULTRAVOX_HOST}`)"
+      - "traefik.http.routers.ultravox.entrypoints=websecure"
+      - "traefik.http.routers.ultravox.tls.certresolver=letsencrypt"
+      - "traefik.http.services.ultravox.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.voice-auth.basicauth.users=${BASIC_AUTH_USERS}"
+      - "traefik.http.middlewares.voice-auth.basicauth.realm=Protected Voice Stack"
+      - "traefik.http.routers.ultravox.middlewares=voice-auth@docker"
     volumes:
       - ultravox_models:/models
       - ultravox_cache:/root/.cache
@@ -88,13 +94,6 @@ services:
       - voice_private
     security_opt:
       - no-new-privileges:true
-   labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.ultravox.rule=Host(`${ULTRAVOX_HOST}`)"
-      - "traefik.http.routers.ultravox.entrypoints=websecure"
-      - "traefik.http.routers.ultravox.tls.certresolver=letsencrypt"
-      - "traefik.http.services.ultravox.loadbalancer.server.port=8080"
-      - "traefik.http.routers.ultravox.middlewares=voice-auth@docker"
 
 networks:
   voice_private:
